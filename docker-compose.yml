@@ -1,0 +1,84 @@
+name: bigdata-lab2
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: lab2-postgres
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 12345
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  data-loader:
+    image: python:3.12-slim
+    container_name: lab2-data-loader
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: db
+      DB_USER: admin
+      DB_PASSWORD: 12345
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: >
+      sh -lc "pip install --no-cache-dir -r requirements.txt
+      && python transform.py"
+
+  spark:
+    image: bitnami/spark:3.5
+    container_name: lab2-spark
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      HOME: /tmp
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 12345
+    working_dir: /opt/spark-apps
+    volumes:
+      - ./spark:/opt/spark-apps
+    entrypoint: ["/bin/bash", "-lc"]
+    command: ["tail -f /dev/null"]
+
+  spark-star-schema:
+    image: bitnami/spark:3.5
+    container_name: lab2-spark-star-schema
+    depends_on:
+      data-loader:
+        condition: service_completed_successfully
+    environment:
+      HOME: /tmp
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 12345
+    working_dir: /opt/spark-apps
+    volumes:
+      - ./spark:/opt/spark-apps
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - >
+        spark-submit
+        --conf spark.jars.ivy=/tmp/.ivy2
+        --packages org.postgresql:postgresql:42.7.3
+        /opt/spark-apps/build_star_schema.py
+
+volumes:
+  postgres_data:
