@@ -18,6 +18,25 @@ services:
       timeout: 5s
       retries: 10
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: lab2-clickhouse
+    environment:
+      CLICKHOUSE_DB: reports
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   data-loader:
     image: python:3.12-slim
     container_name: lab2-data-loader
@@ -52,6 +71,11 @@ services:
       POSTGRES_DB: db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: 12345
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_HTTP_PORT: 8123
+      CLICKHOUSE_DB: reports
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
     working_dir: /opt/spark-apps
     volumes:
       - ./spark:/opt/spark-apps
@@ -82,5 +106,38 @@ services:
         --packages org.postgresql:postgresql:42.7.3
         /opt/spark-apps/build_star_schema.py
 
+  spark-clickhouse-reports:
+    image: apache/spark:3.5.8-scala2.12-java17-python3-ubuntu
+    container_name: lab2-spark-clickhouse-reports
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      spark-star-schema:
+        condition: service_completed_successfully
+    environment:
+      HOME: /tmp
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 12345
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_HTTP_PORT: 8123
+      CLICKHOUSE_JDBC_PORT: 8123
+      CLICKHOUSE_DB: reports
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    working_dir: /opt/spark-apps
+    volumes:
+      - ./spark:/opt/spark-apps
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - >
+        /opt/spark/bin/spark-submit
+        --conf spark.jars.ivy=/tmp/.ivy2
+        --packages org.postgresql:postgresql:42.7.3,com.clickhouse:clickhouse-jdbc-all:0.9.8
+        /opt/spark-apps/build_clickhouse_reports.py
+
 volumes:
   postgres_data:
+  clickhouse_data:
