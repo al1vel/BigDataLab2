@@ -3,7 +3,7 @@
 Run the full pipeline:
 
 ```bash
-docker compose up -d spark-star-schema
+docker compose up -d
 docker compose logs -f data-loader spark-star-schema
 ```
 
@@ -12,7 +12,7 @@ This starts PostgreSQL as a dependency, loads CSV files with `transform.py`, and
 Start PostgreSQL and an idle Spark container for manual runs:
 
 ```bash
-docker compose up -d postgres spark
+docker compose --profile debug up -d postgres spark
 ```
 
 Run the job that creates the star schema in PostgreSQL:

@@ -52,23 +52,6 @@ def hash_key(*column_names):
     return sha2(concat_ws("||", *values), 256)
 
 
-def execute_sql(spark, sql):
-    props = spark._sc._gateway.jvm.java.util.Properties()
-    props.setProperty("user", POSTGRES_USER)
-    props.setProperty("password", POSTGRES_PASSWORD)
-    props.setProperty("driver", POSTGRES_DRIVER)
-
-    connection = spark._sc._gateway.jvm.java.sql.DriverManager.getConnection(JDBC_URL, props)
-    try:
-        statement = connection.createStatement()
-        try:
-            statement.execute(sql)
-        finally:
-            statement.close()
-    finally:
-        connection.close()
-
-
 def read_postgres_table(spark, table_name):
     return (
         spark.read.format("jdbc")
@@ -97,8 +80,6 @@ def main():
         .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()
     )
-
-    execute_sql(spark, "CREATE SCHEMA IF NOT EXISTS star")
 
     raw = clean_text_columns(read_postgres_table(spark, "public.mock_data"))
     raw_count = raw.count()

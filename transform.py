@@ -49,8 +49,9 @@ def main():
     data_dir = os.getenv("DATA_DIR", str(DEFAULT_DATA_DIR))
 
     execute_sql_file(cursor, sql_file)
+    cursor.execute("CREATE SCHEMA IF NOT EXISTS star")
     conn.commit()
-    print("Mock data table created.")
+    print("Mock data table and star schema created.")
 
     loaded_files = load_csv_files(cursor, data_dir)
     cursor.execute("SELECT COUNT(*) FROM mock_data")

@@ -38,8 +38,10 @@ services:
       && python transform.py"
 
   spark:
-    image: bitnami/spark:3.5
+    image: apache/spark:3.5.8-scala2.12-java17-python3-ubuntu
     container_name: lab2-spark
+    profiles:
+      - debug
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,7 +59,7 @@ services:
     command: ["tail -f /dev/null"]
 
   spark-star-schema:
-    image: bitnami/spark:3.5
+    image: apache/spark:3.5.8-scala2.12-java17-python3-ubuntu
     container_name: lab2-spark-star-schema
     depends_on:
       data-loader:
@@ -75,7 +77,7 @@ services:
     entrypoint: ["/bin/bash", "-lc"]
     command:
       - >
-        spark-submit
+        /opt/spark/bin/spark-submit
         --conf spark.jars.ivy=/tmp/.ivy2
         --packages org.postgresql:postgresql:42.7.3
         /opt/spark-apps/build_star_schema.py
